@@ -1,0 +1,10 @@
+# local user data (created by generate.py at runtime)
+/.claude-activity/
+
+# python
+__pycache__/
+*.pyc
+
+# os
+.DS_Store
+Thumbs.db

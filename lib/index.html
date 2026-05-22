@@ -1,0 +1,1063 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Claude Code Activity</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@500;600;700&family=Nunito+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0d12;
+    --panel: #14181f;
+    --panel-2: #1a1f28;
+    --border: #262d38;
+    --border-soft: #1e242e;
+    --text: #f0f4f8;
+    --text-dim: #7d8694;
+    --text-faint: #586068;
+    --accent: #58a6ff;
+    --empty: #1a2030;
+    --cell-size: 26px;
+    /* Green ramp — weekdays */
+    --c0: #1f2935;
+    --c1: #1f6b3e;
+    --c2: #2ea043;
+    --c3: #46c662;
+    --c4: #6ce281;
+    /* Red ramp — weekends */
+    --r1: #7a1d2e;
+    --r2: #b3263a;
+    --r3: #e34d5b;
+    --r4: #f3858b;
+    /* Yellow ramp — weekday off-hours (outside 13:00–21:00) */
+    --y1: #7a5a1e;
+    --y2: #b88a26;
+    --y3: #e8b53b;
+    --y4: #f5d76e;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 40px 28px;
+    font-family: "Nunito Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-weight: 400;
+    background:
+      radial-gradient(ellipse 800px 400px at 30% -200px, rgba(88, 166, 255, 0.06), transparent),
+      radial-gradient(ellipse 600px 300px at 90% 0, rgba(239, 68, 68, 0.04), transparent),
+      var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  .wrap { width: fit-content; max-width: 100%; margin: 0; }
+  .main {
+    display: flex;
+    gap: 16px;
+    align-items: stretch;
+    justify-content: flex-start;
+  }
+  .grid-card {
+    display: flex;
+    flex-direction: column;
+  }
+  .grid-card #grid {
+    flex: 0 0 auto;
+    width: var(--max-table-w, auto);
+    display: flex;
+    justify-content: flex-end;
+    align-items: stretch;
+  }
+  .main .grid-card { flex: 0 0 auto; }
+  .stats-card {
+    flex: 0 0 300px;
+    background: var(--panel);
+    border-radius: 12px;
+    padding: 22px;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+  .stats-card h3 {
+    margin: 0 0 16px 0;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-dim);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .stats-card .group {
+    border-top: 1px solid var(--border-soft);
+    padding-top: 18px;
+    margin-top: 18px;
+  }
+  .stats-card .group:first-of-type { border-top: 0; padding-top: 0; margin-top: 0; }
+  .stats-card .row {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 3px 0;
+  }
+  .stats-card .row .label { color: var(--text-dim); }
+  .stats-card .row .value {
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .stats-card .row.sub .label { padding-left: 12px; color: var(--text-dim); font-size: 12px; }
+  .stats-card .row.sub .value { font-size: 12px; }
+  .stats-card .row.total .label { font-weight: 500; color: var(--text); }
+  .stats-card .row.total .value { font-weight: 600; font-size: 14px; }
+  .stats-card .row.total:first-child .value { font-size: 24px; font-weight: 600; letter-spacing: -0.01em; }
+  .stats-card .pct { color: var(--text-dim); font-size: 11px; margin-left: 6px; }
+  .stats-card h4 {
+    margin: 0 0 8px 0;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+  }
+
+  /* Hour-of-day bar chart (vertical bars) */
+  .chart-hours {
+    display: grid;
+    grid-template-columns: repeat(24, 1fr);
+    gap: 2px;
+    align-items: end;
+    height: 56px;
+    margin-top: 4px;
+  }
+  .chart-hours .bar {
+    background: var(--c2);
+    border-radius: 2px 2px 0 0;
+    min-height: 1px;
+    transition: filter 0.1s;
+  }
+  .chart-hours .bar.off { background: var(--y2); }
+  .chart-hours .bar:hover { filter: brightness(1.25); }
+  .chart-hours-axis {
+    display: grid;
+    grid-template-columns: repeat(24, 1fr);
+    font-size: 9px;
+    color: var(--text-dim);
+    margin-top: 4px;
+    font-variant-numeric: tabular-nums;
+  }
+  .chart-hours-axis span { text-align: center; }
+  .chart-hours-axis span:not(:nth-child(6n+1)) { visibility: hidden; }
+
+  /* Day-of-week chart (horizontal rows) */
+  .chart-dow { display: grid; gap: 4px; }
+  .chart-dow .row {
+    display: grid;
+    grid-template-columns: 18px 1fr 50px;
+    align-items: center;
+    gap: 8px;
+    padding: 0;
+  }
+  .chart-dow .row .dow-label {
+    font-size: 10px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .chart-dow .row .dow-bar {
+    height: 6px;
+    border-radius: 3px;
+    background: var(--c2);
+    min-width: 1px;
+  }
+  .chart-dow .row.wknd .dow-bar { background: var(--r2); }
+  .chart-dow .row .dow-val {
+    font-size: 11px;
+    text-align: right;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Big KPI block — 3 main metrics stacked */
+  .kpi-stack { display: flex; flex-direction: column; gap: 14px; }
+  .kpi {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .kpi .k-label {
+    font-size: 10px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .kpi .k-value {
+    font-family: "DM Sans", "Nunito Sans", sans-serif;
+    font-weight: 700;
+    font-size: 26px;
+    color: var(--text);
+    letter-spacing: -0.01em;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.1;
+  }
+  .kpi .k-pct {
+    font-size: 13px;
+    color: var(--text-dim);
+    font-weight: 500;
+    font-family: "Nunito Sans", sans-serif;
+  }
+  .kpi .k-sep, .stats-card .sep { color: var(--text-faint); font-weight: 400; }
+  .u {
+    color: var(--text-faint);
+    font-weight: 400;
+    font-family: "Nunito Sans", sans-serif;
+  }
+  .stats-subtitle {
+    color: var(--text-dim);
+    font-size: 12px;
+    padding: 2px 0 8px 0;
+  }
+  .kpi .k-value .u { font-size: 0.65em; }
+
+  /* 5h-peak row: per-day vertical bar showing rolling peak (above day numbers) */
+  table.heatmap tr.peak-row th.row-label,
+  table.heatmap tr.tokens-row th.row-label {
+    font-size: 9px;
+    color: var(--text-faint);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  table.heatmap td.peak-cell {
+    height: 32px;
+    vertical-align: bottom;
+    padding: 0;
+    position: relative;
+  }
+  table.heatmap td.peak-cell .peak-fill {
+    display: block;
+    width: 100%;
+    background: var(--accent);
+    border-radius: 2px 2px 0 0;
+    min-height: 0;
+    opacity: 0.7;
+  }
+
+  /* Token-intensity row above day numbers */
+  table.heatmap td.token-bar {
+    height: 6px;
+    background: var(--accent);
+    border-radius: 2px;
+    padding: 0;
+  }
+
+  /* 5h rolling line chart in sidebar */
+  .chart-roll {
+    width: 100%;
+    height: 76px;
+    margin-top: 4px;
+    overflow: visible;
+  }
+  .chart-roll .axis { stroke: var(--border-soft); }
+  .chart-roll .line { fill: none; stroke: var(--accent); stroke-width: 1.5; }
+  .chart-roll .area { fill: var(--accent); opacity: 0.15; }
+  .chart-roll .peak-dot { fill: var(--accent); }
+
+  /* Mini KPI tile (peak hour) */
+  .peak {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+  }
+  .peak .h {
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+  }
+  .peak .sub { color: var(--text-dim); font-size: 12px; }
+
+  @media (max-width: 1200px) {
+    .main { flex-direction: column; }
+    .stats-card { flex: 0 0 auto; width: 100%; }
+  }
+  h1, h3, h4, .month-label, .peak .h,
+  .stats-card .row.total:first-child .value {
+    font-family: "DM Sans", "Nunito Sans", sans-serif;
+    font-weight: 700;
+  }
+  h1 {
+    margin: 0 0 6px 0;
+    font-size: 22px;
+    letter-spacing: -0.01em;
+  }
+  .subtitle {
+    color: var(--text-dim);
+    font-size: 13px;
+    margin-bottom: 28px;
+    line-height: 1.5;
+  }
+  .header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .nav { display: flex; align-items: center; gap: 4px; }
+  .nav button {
+    background: var(--panel);
+    color: var(--text-dim);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    cursor: pointer;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.12s, color 0.12s, border-color 0.12s;
+  }
+  .nav button:hover:not(:disabled) {
+    background: var(--panel-2);
+    color: var(--text);
+    border-color: var(--text-faint);
+  }
+  .nav button:disabled { opacity: 0.3; cursor: not-allowed; }
+  .month-label {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text);
+    letter-spacing: -0.01em;
+    margin-right: 4px;
+    min-width: 152px;
+    display: inline-block;
+  }
+  .month-select-trigger {
+    min-width: 152px;
+    justify-content: space-between;
+  }
+
+  /* Custom month select */
+  .month-select { position: relative; }
+  .month-select-trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--panel);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 6px 10px 6px 14px;
+    font-size: 13px;
+    font-family: inherit;
+    font-weight: 500;
+    cursor: pointer;
+    outline: none;
+    line-height: 1;
+    height: 32px;
+    transition: background 0.12s, border-color 0.12s;
+  }
+  .month-select-trigger:hover { background: var(--panel-2); border-color: var(--text-faint); }
+  .month-select-trigger[aria-expanded="true"] { border-color: var(--accent); }
+  .month-select-chevron {
+    color: var(--text-dim);
+    transition: transform 0.15s;
+  }
+  .month-select-trigger[aria-expanded="true"] .month-select-chevron {
+    transform: rotate(180deg);
+    color: var(--text);
+  }
+  .month-select-menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    min-width: 160px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 6px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .month-select-menu[hidden] { display: none; }
+  .month-select-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: transparent;
+    color: var(--text);
+    border: 0;
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 13px;
+    font-family: inherit;
+    cursor: pointer;
+    text-align: left;
+    transition: background 0.08s, color 0.08s;
+  }
+  .month-select-item:hover { background: var(--panel-2); }
+  .month-select-item[aria-selected="true"] {
+    background: var(--panel-2);
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .month-select-item .check {
+    width: 14px; height: 14px;
+    color: var(--accent);
+    opacity: 0;
+  }
+  .month-select-item[aria-selected="true"] .check { opacity: 1; }
+  .totals {
+    color: var(--text-dim);
+    font-size: 13px;
+  }
+  .totals strong { color: var(--text); font-weight: 600; }
+
+  .grid-card {
+    background: var(--panel);
+    border-radius: 12px;
+    padding: 22px;
+    overflow-x: auto;
+  }
+
+  table.heatmap {
+    border-collapse: separate;
+    border-spacing: 4px;
+    font-size: 11px;
+    color: var(--text-dim);
+    /* compensate for border-spacing applied around the outer edges */
+    margin: -4px;
+  }
+  table.heatmap th, table.heatmap td {
+    padding: 0;
+    text-align: center;
+    vertical-align: middle;
+    font-weight: 400;
+  }
+  table.heatmap thead th {
+    height: var(--cell-size);
+    min-width: var(--cell-size);
+    color: var(--text-dim);
+    font-size: 10px;
+  }
+  table.heatmap th.row-label {
+    width: 40px;
+    text-align: right;
+    padding-right: 10px;
+    color: var(--text-dim);
+    font-variant-numeric: tabular-nums;
+  }
+  table.heatmap td.cell {
+    width: var(--cell-size);
+    height: var(--cell-size);
+    border-radius: 5px;
+    background: var(--c0);
+    cursor: default;
+    transition: transform 0.06s, filter 0.06s;
+  }
+  table.heatmap td.cell:hover {
+    transform: scale(1.15);
+    filter: brightness(1.15);
+  }
+  table.heatmap td.cell.empty { background: transparent; }
+  table.heatmap td.cell.l1 { background: var(--c1); }
+  table.heatmap td.cell.l2 { background: var(--c2); }
+  table.heatmap td.cell.l3 { background: var(--c3); }
+  table.heatmap td.cell.l4 { background: var(--c4); }
+
+  table.heatmap td.cell.wknd.l1 { background: var(--r1); }
+  table.heatmap td.cell.wknd.l2 { background: var(--r2); }
+  table.heatmap td.cell.wknd.l3 { background: var(--r3); }
+  table.heatmap td.cell.wknd.l4 { background: var(--r4); }
+
+  table.heatmap td.cell.off.l1 { background: var(--y1); }
+  table.heatmap td.cell.off.l2 { background: var(--y2); }
+  table.heatmap td.cell.off.l3 { background: var(--y3); }
+  table.heatmap td.cell.off.l4 { background: var(--y4); }
+
+  th.col-weekend { color: var(--r3); }
+  th.row-offhour { color: var(--y3); }
+
+  .legend {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 20px;
+    justify-content: flex-end;
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+  .legend .swatches { display: flex; gap: 3px; }
+  .legend .sw {
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+  }
+  .footer {
+    margin-top: 18px;
+    font-size: 12px;
+    color: var(--text-dim);
+    line-height: 1.5;
+  }
+  .footer code {
+    background: var(--panel);
+    padding: 1px 5px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    font-size: 11.5px;
+  }
+
+  /* Tooltip */
+  #tooltip {
+    position: fixed;
+    pointer-events: none;
+    background: #1f2937;
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 9px;
+    font-size: 12px;
+    line-height: 1.4;
+    white-space: nowrap;
+    z-index: 10;
+    opacity: 0;
+    transform: translate(-50%, -100%);
+    transition: opacity 0.08s;
+    box-shadow: 0 6px 16px rgba(0,0,0,0.4);
+  }
+  #tooltip.show { opacity: 1; }
+  #tooltip { max-width: 360px; white-space: normal; }
+  #tooltip .t-head { font-weight: 600; margin-bottom: 2px; }
+  #tooltip .t-dim { color: var(--text-dim); font-size: 11px; }
+  #tooltip .t-list {
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px solid var(--border-soft);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  #tooltip .t-item { font-size: 11.5px; }
+  #tooltip .t-item .t-proj {
+    display: inline-block;
+    color: var(--text);
+    font-weight: 600;
+  }
+  #tooltip .t-item .t-dur {
+    color: var(--text-dim);
+    margin-left: 6px;
+    font-variant-numeric: tabular-nums;
+  }
+  #tooltip .t-item .t-title {
+    color: var(--text-dim);
+    font-size: 11px;
+    margin-top: 1px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    word-wrap: break-word;
+  }
+  #tooltip .t-item em { color: var(--text-faint); font-style: normal; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Claude Code Activity</h1>
+  <div class="subtitle">
+    Sum of intervals between JSONL log events; gap threshold and work hours
+    are configurable. Local time.
+  </div>
+
+  <div class="header">
+    <div class="month-select" id="monthSelectWrap">
+      <button class="month-select-trigger" id="monthSelectTrigger" type="button" aria-haspopup="listbox" aria-expanded="false">
+        <span class="month-select-value" id="monthSelectValue">—</span>
+        <svg class="month-select-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+      </button>
+      <div class="month-select-menu" id="monthSelectMenu" role="listbox" hidden></div>
+    </div>
+    <div class="nav">
+      <button id="prev" title="Previous month" aria-label="Previous month">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+      </button>
+      <button id="next" title="Next month" aria-label="Next month">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="grid-card">
+      <div id="grid"></div>
+      <div class="legend">
+        <span class="leg-work-label">Work (Mon-Fri)</span>
+        <div class="swatches">
+          <div class="sw" style="background:var(--c1)"></div>
+          <div class="sw" style="background:var(--c2)"></div>
+          <div class="sw" style="background:var(--c3)"></div>
+          <div class="sw" style="background:var(--c4)"></div>
+        </div>
+        <span style="margin-left:14px">Off hours (Mon-Fri)</span>
+        <div class="swatches">
+          <div class="sw" style="background:var(--y1)"></div>
+          <div class="sw" style="background:var(--y2)"></div>
+          <div class="sw" style="background:var(--y3)"></div>
+          <div class="sw" style="background:var(--y4)"></div>
+        </div>
+        <span style="margin-left:14px">Weekends</span>
+        <div class="swatches">
+          <div class="sw" style="background:var(--r1)"></div>
+          <div class="sw" style="background:var(--r2)"></div>
+          <div class="sw" style="background:var(--r3)"></div>
+          <div class="sw" style="background:var(--r4)"></div>
+        </div>
+      </div>
+    </div>
+    <aside class="stats-card" id="statsCard">
+      <h3 id="statsTitle">—</h3>
+      <div id="statsBody"></div>
+    </aside>
+  </div>
+
+  <div class="footer" id="footer">
+    For fresh data, close this tab and re-run <code>/activity</code> in Claude Code.
+  </div>
+</div>
+
+<div id="tooltip"></div>
+
+<script id="claude-activity-data">
+/* DATA_START */
+window.CLAUDE_ACTIVITY_DATA = null;
+/* DATA_END */
+</script>
+<script>
+const MONTH_NAMES = [
+  "January","February","March","April","May","June",
+  "July","August","September","October","November","December"
+];
+const WEEKDAY_NAMES_SHORT = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+// Work intervals: array of [start_inclusive, end_exclusive]. Multiple
+// intervals supported (e.g. lunch break). Overridden from DATA.
+let WORK_INTERVALS = [[9, 18]];
+// Mon-first indices: 0=Mon … 6=Sun. Overridden from DATA.
+let WORK_DAYS = new Set([0, 1, 2, 3, 4]);
+let FIRST_DAY_OF_WEEK = 0; // 0=Mon (ISO), 6=Sun (US)
+
+function monIdxOf(jsDay) { return (jsDay + 6) % 7; } // JS getDay() → Mon-first
+function isWorkHour(h) { return WORK_INTERVALS.some(([s, e]) => h >= s && h < e); }
+function formatIntervals(intervals) {
+  return intervals.map(([s, e]) => `${s}–${e}`).join(", ");
+}
+
+function classifyCell(year, monthIdx, day, hour) {
+  const wd = monIdxOf(new Date(year, monthIdx, day).getDay());
+  if (!WORK_DAYS.has(wd)) return "wknd";
+  if (isWorkHour(hour)) return "work";
+  return "off";
+}
+
+let DATA = null;
+let currentMonth = null;
+const today = new Date();
+const todayKey = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,"0")}`;
+
+function levelFor(seconds) {
+  if (!seconds || seconds <= 0) return 0;
+  const min = seconds / 60;
+  if (min < 5) return 1;
+  if (min < 15) return 2;
+  if (min < 30) return 3;
+  return 4;
+}
+
+function formatDurationParts(seconds) {
+  if (!seconds || seconds <= 0) return { h: 0, m: 0 };
+  let h = Math.floor(seconds / 3600);
+  let m = Math.round((seconds % 3600) / 60);
+  if (m === 60) { h += 1; m = 0; }
+  return { h, m };
+}
+
+function formatDuration(seconds) {
+  const { h, m } = formatDurationParts(seconds);
+  const mm = String(m).padStart(2, "0");
+  return `${h}<span class="u">h</span> ${mm}<span class="u">m</span>`;
+}
+
+function formatDurationPlain(seconds) {
+  const { h, m } = formatDurationParts(seconds);
+  const mm = String(m).padStart(2, "0");
+  return `${h}h ${mm}m`;
+}
+
+function formatTokens(n) {
+  if (!n || n <= 0) return "0";
+  if (n >= 1e9) return (n / 1e9).toFixed(1) + "B";
+  if (n >= 1e6) return (n / 1e6).toFixed(1) + "M";
+  if (n >= 1e3) return (n / 1e3).toFixed(1) + "K";
+  return String(n);
+}
+
+function daysInMonth(yyyymm) {
+  const [y, m] = yyyymm.split("-").map(Number);
+  return new Date(y, m, 0).getDate();
+}
+
+function monthLabelFor(m) {
+  const [y, mm] = m.split("-");
+  return `${MONTH_NAMES[Number(mm)-1]} ${y}`;
+}
+
+function renderMonthPicker() {
+  const menu = document.getElementById("monthSelectMenu");
+  menu.innerHTML = "";
+  for (const m of DATA.available_months) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "month-select-item";
+    btn.dataset.value = m;
+    btn.setAttribute("role", "option");
+    btn.innerHTML =
+      `<span>${monthLabelFor(m)}</span>` +
+      `<svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+    btn.addEventListener("click", () => {
+      setMonth(m);
+      closeMonthSelect();
+    });
+    menu.appendChild(btn);
+  }
+  updateMonthSelectSelection();
+
+  const trigger = document.getElementById("monthSelectTrigger");
+  trigger.onclick = (e) => {
+    e.stopPropagation();
+    if (trigger.getAttribute("aria-expanded") === "true") closeMonthSelect();
+    else openMonthSelect();
+  };
+  document.addEventListener("click", (e) => {
+    const wrap = document.getElementById("monthSelectWrap");
+    if (!wrap.contains(e.target)) closeMonthSelect();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") closeMonthSelect();
+  });
+}
+
+function openMonthSelect() {
+  document.getElementById("monthSelectMenu").hidden = false;
+  document.getElementById("monthSelectTrigger").setAttribute("aria-expanded", "true");
+}
+function closeMonthSelect() {
+  document.getElementById("monthSelectMenu").hidden = true;
+  document.getElementById("monthSelectTrigger").setAttribute("aria-expanded", "false");
+}
+function updateMonthSelectSelection() {
+  document.getElementById("monthSelectValue").textContent = monthLabelFor(currentMonth);
+  document.querySelectorAll("#monthSelectMenu .month-select-item").forEach(b => {
+    b.setAttribute("aria-selected", b.dataset.value === currentMonth ? "true" : "false");
+  });
+}
+
+function setMonth(m) {
+  currentMonth = m;
+  updateMonthSelectSelection();
+
+  const idx = DATA.available_months.indexOf(m);
+  document.getElementById("prev").disabled = idx <= 0;
+  document.getElementById("next").disabled = idx >= DATA.available_months.length - 1;
+
+  renderGrid();
+  renderStats();
+  syncCellSize();
+}
+
+function syncCellSize() {
+  const stats = document.querySelector(".stats-card");
+  const gridCard = document.querySelector(".grid-card");
+  const legend = document.querySelector(".legend");
+  if (!stats || !gridCard) return;
+
+  const ROWS = 25;
+  const SPACING = 4;
+  const NEG_MARGIN = 8;
+
+  const statsH = stats.offsetHeight;
+  const gridCS = getComputedStyle(gridCard);
+  const padV = parseFloat(gridCS.paddingTop) + parseFloat(gridCS.paddingBottom);
+  const legendH = legend
+    ? legend.offsetHeight + parseFloat(getComputedStyle(legend).marginTop)
+    : 0;
+  const availH = statsH - padV - legendH;
+  const cell = Math.max(16, Math.floor((availH - (ROWS + 1) * SPACING + NEG_MARGIN) / ROWS));
+  document.documentElement.style.setProperty("--cell-size", `${cell}px`);
+
+  // Fix the left card width to fit a 31-day month, so shorter months right-align.
+  const LABEL_W = 40;            // row-label TH width (border-box, padding included)
+  const DAY_COLS_MAX = 31;
+  const maxTableW = LABEL_W + DAY_COLS_MAX * cell + (DAY_COLS_MAX + 2) * SPACING;
+  document.documentElement.style.setProperty("--max-table-w", `${maxTableW}px`);
+}
+
+window.addEventListener("resize", () => {
+  if (window._syncT) clearTimeout(window._syncT);
+  window._syncT = setTimeout(syncCellSize, 80);
+});
+
+function renderStats() {
+  const m = DATA.months[currentMonth];
+  const title = document.getElementById("statsTitle");
+  const body = document.getElementById("statsBody");
+  const [y, mm] = currentMonth.split("-").map(Number);
+  title.textContent = `${MONTH_NAMES[mm-1]} ${y}`;
+
+  if (!m) {
+    body.innerHTML = "<div class='row'><span class='label'>No data</span></div>";
+    return;
+  }
+
+  // Aggregate by category, by hour-of-day, by day-of-week
+  let work = 0, off = 0, wknd = 0;
+  const byHour = new Array(24).fill(0);
+  const byDow = new Array(7).fill(0); // 0=Mon..6=Sun
+  for (const [dkey, day] of Object.entries(m.days)) {
+    const d = Number(dkey);
+    const dowJS = new Date(y, mm - 1, d).getDay(); // 0=Sun..6=Sat
+    const dowMon = (dowJS + 6) % 7;
+    for (const [hkey, sec] of Object.entries(day.hours)) {
+      const h = Number(hkey);
+      byHour[h] += sec;
+      byDow[dowMon] += sec;
+      const t = classifyCell(y, mm - 1, d, h);
+      if (t === "work") work += sec;
+      else if (t === "off") off += sec;
+      else wknd += sec;
+    }
+  }
+  const total = work + off + wknd;
+  const nonWork = off + wknd;
+  const activeDays = Object.keys(m.days).filter(d => m.days[d].total > 0).length;
+  const avg = activeDays ? total / activeDays : 0;
+
+  const pct = v => total > 0 ? Math.round((v / total) * 100) + "%" : "—";
+  const row = (cls, label, value, pctStr) => `
+    <div class="row ${cls || ""}">
+      <span class="label">${label}</span>
+      <span class="value">${pctStr ? `<span class="pct">${pctStr}</span> <span class="sep">/</span> ` : ""}${value}</span>
+    </div>`;
+
+  // Peak hour
+  const peakH = byHour.indexOf(Math.max(...byHour));
+  const peakHsec = byHour[peakH];
+
+  // Hour-of-day chart
+  const maxH = Math.max(1, ...byHour);
+  const hourBars = byHour.map((sec, h) => {
+    const pctH = (sec / maxH) * 100;
+    const isOff = !isWorkHour(h);
+    const cls = isOff ? "bar off" : "bar";
+    const tip = `${String(h).padStart(2,"0")}:00 — ${formatDurationPlain(sec)}`;
+    return `<div class="${cls}" style="height:${pctH.toFixed(1)}%" title="${tip}"></div>`;
+  }).join("");
+  const hourAxis = Array.from({length: 24}, (_, i) => `<span>${String(i).padStart(2,"0")}</span>`).join("");
+
+  // Day-of-week chart — byDow is Mon-first internally; render in user's preferred order
+  const dowNames = ["MO","TU","WE","TH","FR","SA","SU"];
+  const maxDow = Math.max(1, ...byDow);
+  const displayOrder = Array.from({length: 7}, (_, k) => (FIRST_DAY_OF_WEEK + k) % 7);
+  const dowRows = displayOrder.map(i => {
+    const sec = byDow[i];
+    const wPct = (sec / maxDow) * 100;
+    const isWknd = !WORK_DAYS.has(i);
+    return `<div class="row ${isWknd ? "wknd" : ""}">
+      <span class="dow-label">${dowNames[i]}</span>
+      <span class="dow-bar" style="width:${wPct.toFixed(1)}%"></span>
+      <span class="dow-val">${formatDuration(sec)}</span>
+    </div>`;
+  }).join("");
+
+  const totalTokens = m.tokens_total || 0;
+
+  const kpi = (label, value, pctStr) => `
+    <div class="kpi">
+      <span class="k-label">${label}</span>
+      <span class="k-value">${value}${pctStr ? ` <span class="k-sep">/</span> <span class="k-pct">${pctStr}</span>` : ""}</span>
+    </div>`;
+
+  body.innerHTML =
+    `<div class="group">
+       <div class="kpi-stack">
+         ${kpi("Total", formatDuration(total))}
+         ${kpi("Work hours", formatDuration(work), pct(work))}
+         ${kpi("Off hours", formatDuration(nonWork), pct(nonWork))}
+       </div>
+     </div>
+     <div class="group">
+       <div class="stats-subtitle">${activeDays} active days · avg ${formatDuration(avg)}</div>
+       ${row("sub", `Mon-Fri ${formatIntervals(WORK_INTERVALS)} (work)`, formatDuration(work))}
+       ${row("sub", "Mon-Fri off-hours", formatDuration(off), pct(off))}
+       ${row("sub", "Weekends", formatDuration(wknd), pct(wknd))}
+     </div>
+     <div class="group">
+       <h4>By hour of day</h4>
+       <div class="chart-hours">${hourBars}</div>
+       <div class="chart-hours-axis">${hourAxis}</div>
+     </div>
+     <div class="group">
+       <h4>By day of week</h4>
+       <div class="chart-dow">${dowRows}</div>
+     </div>
+     <div class="group">
+       <h4>Tokens</h4>
+       ${row("", "Used (billable)", formatTokens(totalTokens))}
+       <div class="row sub"><span class="label">input + output + cache_create + cache_read × 0.1</span><span class="value"></span></div>
+     </div>`;
+}
+
+function renderGrid() {
+  const m = DATA.months[currentMonth];
+  const [y, mm] = currentMonth.split("-").map(Number);
+  const dn = daysInMonth(currentMonth);
+
+  let html = '<table class="heatmap"><thead>';
+  html += '<tr><th class="row-label"></th>';
+  for (let d = 1; d <= dn; d++) {
+    const wd = monIdxOf(new Date(y, mm - 1, d).getDay());
+    const cls = WORK_DAYS.has(wd) ? "" : "col-weekend";
+    html += `<th class="${cls}">${String(d).padStart(2,"0")}</th>`;
+  }
+  html += '</tr></thead><tbody>';
+
+  for (let h = 0; h < 24; h++) {
+    const isOffHourRow = !isWorkHour(h);
+    const rowLabelCls = isOffHourRow ? "row-label row-offhour" : "row-label";
+    html += `<tr><th class="${rowLabelCls}">${String(h).padStart(2,"0")}h</th>`;
+    for (let d = 1; d <= dn; d++) {
+      const dkey = String(d).padStart(2, "0");
+      const day = m && m.days[dkey];
+      const sec = day && day.hours[String(h)] ? day.hours[String(h)] : 0;
+      const lvl = levelFor(sec);
+      const kind = classifyCell(y, mm - 1, d, h);
+      const cls = ["cell"];
+      if (lvl > 0) cls.push(`l${lvl}`);
+      if (kind === "wknd") cls.push("wknd");
+      else if (kind === "off") cls.push("off");
+      html += `<td class="${cls.join(" ")}" data-d="${d}" data-h="${h}" data-s="${sec}"></td>`;
+    }
+    html += '</tr>';
+  }
+  html += '</tbody></table>';
+
+  document.getElementById("grid").innerHTML = html;
+  attachTooltip();
+}
+
+function attachTooltip() {
+  const tt = document.getElementById("tooltip");
+  const cells = document.querySelectorAll("td.cell");
+  const m = DATA.months[currentMonth];
+  cells.forEach(c => {
+    c.addEventListener("mouseenter", e => {
+      const d = c.dataset.d;
+      const h = c.dataset.h;
+      const s = Number(c.dataset.s);
+      const [y, mm] = currentMonth.split("-");
+      const date = new Date(Number(y), Number(mm)-1, Number(d));
+      const wd = WEEKDAY_NAMES_SHORT[date.getDay()];
+      const dkey = String(d).padStart(2, "0");
+      const day = m && m.days[dkey];
+      const sessions = day && day.sessions ? day.sessions[h] : null;
+
+      let html =
+        `<div class="t-head">${formatDuration(s)}</div>` +
+        `<div class="t-dim">${MONTH_NAMES[Number(mm)-1]} ${dkey} (${wd}), ${String(h).padStart(2,"0")}:00–${String(Number(h)+1).padStart(2,"0")}:00</div>`;
+
+      if (sessions && sessions.length) {
+        html += '<div class="t-list">';
+        for (const sess of sessions) {
+          const dur = formatDuration(sess.sec);
+          const title = sess.title ? escapeHtml(sess.title) : "<em>no title</em>";
+          html += `<div class="t-item">` +
+            `<span class="t-proj">${escapeHtml(sess.project)}</span>` +
+            `<span class="t-dur">${dur}</span>` +
+            `<div class="t-title">${title}</div>` +
+          `</div>`;
+        }
+        html += '</div>';
+      }
+
+      tt.innerHTML = html;
+      // Position: prefer above; if too narrow viewport, switch sides
+      const r = c.getBoundingClientRect();
+      tt.style.left = (r.left + r.width / 2) + "px";
+      tt.style.top = (r.top - 6) + "px";
+      tt.classList.add("show");
+    });
+    c.addEventListener("mouseleave", () => tt.classList.remove("show"));
+  });
+}
+
+function escapeHtml(s) {
+  return String(s)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+
+document.getElementById("prev").onclick = () => {
+  const i = DATA.available_months.indexOf(currentMonth);
+  if (i > 0) setMonth(DATA.available_months[i-1]);
+};
+document.getElementById("next").onclick = () => {
+  const i = DATA.available_months.indexOf(currentMonth);
+  if (i >= 0 && i < DATA.available_months.length - 1) setMonth(DATA.available_months[i+1]);
+};
+
+document.addEventListener("keydown", e => {
+  if (e.key === "ArrowLeft") document.getElementById("prev").click();
+  if (e.key === "ArrowRight") document.getElementById("next").click();
+});
+
+if (!window.CLAUDE_ACTIVITY_DATA) {
+  document.querySelector(".wrap").innerHTML =
+    `<h1>data.js not loaded</h1>` +
+    `<p>Run <code>python3 generate.py</code> in this folder to create <code>data.js</code>, ` +
+    `then refresh the page.</p>`;
+} else {
+  DATA = window.CLAUDE_ACTIVITY_DATA;
+  if (Array.isArray(DATA.work_intervals) && DATA.work_intervals.length) {
+    WORK_INTERVALS = DATA.work_intervals.map(([s, e]) => [Number(s), Number(e)]);
+  } else if (Number.isInteger(DATA.work_hour_start) && Number.isInteger(DATA.work_hour_end)) {
+    WORK_INTERVALS = [[DATA.work_hour_start, DATA.work_hour_end]]; // legacy
+  }
+  if (Array.isArray(DATA.work_days)) WORK_DAYS = new Set(DATA.work_days);
+  if (Number.isInteger(DATA.first_day_of_week)) FIRST_DAY_OF_WEEK = DATA.first_day_of_week;
+  const legW = document.querySelector(".leg-work-label");
+  if (legW) legW.textContent = `Work (Mon-Fri ${formatIntervals(WORK_INTERVALS)})`;
+  if (!DATA.available_months.length) {
+    document.querySelector(".wrap").innerHTML =
+      "<h1>No data</h1><p>Run <code>python3 generate.py</code> and refresh the page.</p>";
+  } else {
+    currentMonth = DATA.available_months.includes(todayKey)
+      ? todayKey
+      : DATA.available_months[DATA.available_months.length - 1];
+    renderMonthPicker();
+    setMonth(currentMonth);
+
+    const gen = new Date(DATA.generated_at);
+    const genFmt = gen.toLocaleString("en-US", {
+      month: "short", day: "numeric", year: "numeric",
+      hour: "2-digit", minute: "2-digit", hour12: false,
+    });
+    document.getElementById("footer").innerHTML =
+      `Snapshot from <strong>${genFmt}</strong>. ` +
+      `For fresh data, close this tab and re-run <code>/activity</code> in Claude Code.`;
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,20 @@
+{
+  "name": "claude-activity",
+  "description": "Local heatmap of your Claude Code activity — hour × day grid, work/off/weekend breakdown, per-project session tooltips. Self-contained HTML dashboard from ~/.claude/projects JSONL logs. No server, no telemetry.",
+  "author": {
+    "name": "kalatsch",
+    "email": "kirill.kalatsch@gmail.com"
+  },
+  "homepage": "https://github.com/kalatsch/claude-activity",
+  "repository": "https://github.com/kalatsch/claude-activity.git",
+  "keywords": [
+    "activity",
+    "heatmap",
+    "time-tracking",
+    "dashboard",
+    "analytics",
+    "productivity",
+    "usage"
+  ],
+  "license": "MIT"
+}
